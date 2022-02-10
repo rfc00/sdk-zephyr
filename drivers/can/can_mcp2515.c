@@ -942,7 +942,7 @@ static struct socket_can_context socket_can_context_1;
 
 static int socket_can_init(const struct device *dev)
 {
-	const struct device *can_dev = DEVICE_DT_INST_GET(1);
+	const struct device *can_dev = DEVICE_DT_INST_GET(0);
 	struct socket_can_context *socket_context = dev->data;
 
 	LOG_DBG("Init socket CAN device %p (%s) for dev %p (%s)",
