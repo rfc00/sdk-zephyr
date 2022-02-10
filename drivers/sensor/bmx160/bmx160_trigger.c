@@ -115,7 +115,7 @@ static void bmx160_gpio_callback(const struct device *port,
 #if defined(CONFIG_BMX160_TRIGGER_OWN_THREAD)
 	k_sem_give(&data->sem);
 #elif defined(CONFIG_BMX160_TRIGGER_GLOBAL_THREAD)
-	k_work_submxt(&data->work);
+	k_work_submit(&data->work);
 #endif
 }
 
