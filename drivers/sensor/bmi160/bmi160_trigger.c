@@ -22,6 +22,8 @@ static void bmi160_handle_anymotion(const struct device *dev)
 		.chan = SENSOR_CHAN_ACCEL_XYZ,
 	};
 
+        printk("FML FML FML");
+
 	if (data->handler_anymotion) {
 		data->handler_anymotion(dev, &anym_trigger);
 	}
@@ -64,8 +66,8 @@ static void bmi160_handle_interrupts(const struct device *dev)
 		return;
 	}
 
-	if ((buf.int_status[0] & BMI160_INT_STATUS0_ANYM) &&
-	    (buf.int_status[2] & (BMI160_INT_STATUS2_ANYM_FIRST_X |
+        if ((buf.int_status[1] & BMI160_INT_STATUS0_ANYM) &&
+	    (buf.int_status[1] & (BMI160_INT_STATUS2_ANYM_FIRST_X |
 				  BMI160_INT_STATUS2_ANYM_FIRST_Y |
 				  BMI160_INT_STATUS2_ANYM_FIRST_Z))) {
 		bmi160_handle_anymotion(dev);
