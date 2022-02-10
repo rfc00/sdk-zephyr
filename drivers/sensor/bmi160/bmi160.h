@@ -260,7 +260,7 @@
 #define BMI160_INT1_EDGE_CTRL		BIT(0)
 
 /* other */
-#define BMI160_CHIP_ID			0xD1
+#define BMI160_CHIP_ID			0xD8
 #define BMI160_TEMP_OFFSET		23
 
 /* allowed ODR values */
@@ -407,9 +407,9 @@ union bmi160_bus {
 #if BMI160_BUS_SPI
 	struct spi_dt_spec spi;
 #endif
-#if BMI160_BUS_I2C
+//#if BMI160_BUS_I2C
 	struct i2c_dt_spec i2c;
-#endif
+//#endif
 };
 
 typedef bool (*bmi160_bus_ready_fn)(const struct device *dev);
