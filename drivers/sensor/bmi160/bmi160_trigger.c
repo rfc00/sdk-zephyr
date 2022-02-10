@@ -22,8 +22,6 @@ static void bmi160_handle_anymotion(const struct device *dev)
 		.chan = SENSOR_CHAN_ACCEL_XYZ,
 	};
 
-        printk("FML FML FML");
-
 	if (data->handler_anymotion) {
 		data->handler_anymotion(dev, &anym_trigger);
 	}
