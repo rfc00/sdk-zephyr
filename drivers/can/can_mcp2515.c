@@ -899,66 +899,83 @@ static int mcp2515_init(const struct device *dev)
 static K_KERNEL_STACK_DEFINE(mcp2515_int_thread_stack,
 			     CONFIG_CAN_MCP2515_INT_THREAD_STACK_SIZE);
 
-static struct mcp2515_data mcp2515_data_1 = {
-	.int_thread_stack = mcp2515_int_thread_stack,
-	.tx_cb[0].cb = NULL,
-	.tx_cb[1].cb = NULL,
-	.tx_cb[2].cb = NULL,
-	.tx_busy_map = 0U,
-	.filter_usage = 0U,
-};
+#define CAN_DATA_INST(inst)                                       \
+        static struct mcp2515_data mcp2515_data_##inst = {        \
+        	.int_thread_stack = mcp2515_int_thread_stack,     \
+        	.tx_cb[0].cb = NULL,                              \
+        	.tx_cb[1].cb = NULL,                              \
+        	.tx_cb[2].cb = NULL,                              \
+        	.tx_busy_map = 0U,                                \
+        	.filter_usage = 0U,                               \
+        };
 
-static const struct mcp2515_config mcp2515_config_1 = {
-	.bus = SPI_DT_SPEC_INST_GET(0, SPI_WORD_SET(8), 0),
-	.int_pin = DT_INST_GPIO_PIN(0, int_gpios),
-	.int_port = DT_INST_GPIO_LABEL(0, int_gpios),
-	.int_thread_stack_size = CONFIG_CAN_MCP2515_INT_THREAD_STACK_SIZE,
-	.int_thread_priority = CONFIG_CAN_MCP2515_INT_THREAD_PRIO,
-	.tq_sjw = DT_INST_PROP(0, sjw),
-	.tq_prop = DT_INST_PROP_OR(0, prop_seg, 0),
-	.tq_bs1 = DT_INST_PROP_OR(0, phase_seg1, 0),
-	.tq_bs2 = DT_INST_PROP_OR(0, phase_seg2, 0),
-	.bus_speed = DT_INST_PROP(0, bus_speed),
-	.osc_freq = DT_INST_PROP(0, osc_freq),
-	.sample_point = DT_INST_PROP_OR(0, sample_point, 0)
-};
+#define CAN_CONFIG_INST(inst)                                                         \
+        static const struct mcp2515_config mcp2515_config_##inst = {                  \
+        	.bus = SPI_DT_SPEC_INST_GET(inst, SPI_WORD_SET(8), 0),                \
+        	.int_pin = DT_INST_GPIO_PIN(inst, int_gpios),                         \
+        	.int_port = DT_INST_GPIO_LABEL(inst, int_gpios),                      \
+        	.int_thread_stack_size = CONFIG_CAN_MCP2515_INT_THREAD_STACK_SIZE,    \
+        	.int_thread_priority = CONFIG_CAN_MCP2515_INT_THREAD_PRIO,            \
+        	.tq_sjw = DT_INST_PROP(inst, sjw),                                    \
+        	.tq_prop = DT_INST_PROP_OR(inst, prop_seg, 0),                        \
+        	.tq_bs1 = DT_INST_PROP_OR(inst, phase_seg1, 0),                       \
+        	.tq_bs2 = DT_INST_PROP_OR(inst, phase_seg2, 0),                       \
+        	.bus_speed = DT_INST_PROP(inst, bus_speed),                           \
+        	.osc_freq = DT_INST_PROP(inst, osc_freq),                             \
+        	.sample_point = DT_INST_PROP_OR(inst, sample_point, 0)                \
+        };
 
-DEVICE_DT_INST_DEFINE(0, &mcp2515_init, NULL,
-		    &mcp2515_data_1, &mcp2515_config_1, POST_KERNEL,
-		    CONFIG_CAN_MCP2515_INIT_PRIORITY, &can_api_funcs);
+#define CAN_DEFINE_INST(inst)                                                                 \
+        DEVICE_DT_INST_DEFINE(inst, &mcp2515_init, NULL,                                      \
+        		    &mcp2515_data_##inst, &mcp2515_config_##inst, POST_KERNEL,        \
+        		    CONFIG_CAN_MCP2515_INIT_PRIORITY, &can_api_funcs);             
+                            
+#define CREATE_CAN_DEVICE(inst)         \
+        CAN_DATA_INST(inst);            \
+        CAN_CONFIG_INST(inst);          \
+        CAN_DEFINE_INST(inst);          \
+        const struct device *can_dev_##inst = DEVICE_DT_INST_GET(inst);          
+
+/* Create multiple CAN devices if they exist */
+DT_INST_FOREACH_STATUS_OKAY(CREATE_CAN_DEVICE)
+
 
 #if defined(CONFIG_NET_SOCKETS_CAN)
 
 #include "socket_can_generic.h"
-
-static struct socket_can_context socket_can_context_1;
-
-static int socket_can_init(const struct device *dev)
-{
-	const struct device *can_dev = DEVICE_DT_INST_GET(0);
-	struct socket_can_context *socket_context = dev->data;
-
-	LOG_DBG("Init socket CAN device %p (%s) for dev %p (%s)",
-		dev, dev->name, can_dev, can_dev->name);
-
-	socket_context->can_dev = can_dev;
-	socket_context->msgq = &socket_can_msgq;
-
-	socket_context->rx_tid =
-		k_thread_create(&socket_context->rx_thread_data,
-				rx_thread_stack,
-				K_KERNEL_STACK_SIZEOF(rx_thread_stack),
-				rx_thread, socket_context, NULL, NULL,
-				RX_THREAD_PRIORITY, 0, K_NO_WAIT);
-
-	return 0;
+                                                                                     
+static int socket_can_init(const struct device *dev)                            
+{                                                                                      
+	const struct device *can_dev = DEVICE_DT_INST_GET(0);                                         
+	struct socket_can_context *socket_context = dev->data;                         
+        static int ndev;                                                               
+                                                                                       
+	LOG_DBG("Init socket CAN device %p (%s) for dev %p (%s)",                      
+		dev, dev->name, can_dev, can_dev->name);                               
+                                                                                       
+	socket_context->can_dev = can_dev;                                             
+	socket_context->msgq = &socket_can_msgq;                                       
+                                                                                       
+        if(ndev == 0) {                                                                
+                socket_context->rx_tid = k_thread_create(&socket_context->rx_thread_data,    
+                                        rx_thread_stack,                                     
+                                        K_KERNEL_STACK_SIZEOF(rx_thread_stack),              
+                                        rx_thread, socket_context, NULL, NULL,               
+                                        RX_THREAD_PRIORITY, 0, K_NO_WAIT);                   
+	}                                                                              
+        ndev++;                                                                        
+        return 0;                                                                      
 }
+                                                                              
+#define CAN_INIT_INST(inst)                                                                           \
+        static struct socket_can_context socket_can_context_##inst;                                   \
+        NET_DEVICE_INIT(socket_can_mcp2515_##inst, SOCKET_CAN_NAME_##inst, socket_can_init,           \
+        		NULL, &socket_can_context_##inst, NULL,                                       \
+        		CONFIG_KERNEL_INIT_PRIORITY_DEVICE,                                           \
+        		&socket_can_api,                                                              \
+        		CANBUS_RAW_L2, NET_L2_GET_CTX_TYPE(CANBUS_RAW_L2), CAN_MTU);                                         
 
-NET_DEVICE_INIT(socket_can_mcp2515_1, SOCKET_CAN_NAME_1, socket_can_init,
-		NULL, &socket_can_context_1, NULL,
-		CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
-		&socket_can_api,
-		CANBUS_RAW_L2, NET_L2_GET_CTX_TYPE(CANBUS_RAW_L2), CAN_MTU);
+DT_INST_FOREACH_STATUS_OKAY(CAN_INIT_INST)
 
 #endif
 
