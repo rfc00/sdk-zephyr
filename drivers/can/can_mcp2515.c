@@ -894,19 +894,20 @@ static int mcp2515_init(const struct device *dev)
 	return ret;
 }
 
-#if DT_NODE_HAS_STATUS(DT_DRV_INST(0), okay)
+#if DT_NODE_HAS_STATUS(DT_DRV_INST(0), okay) //at least one CAN exists
 
-static K_KERNEL_STACK_DEFINE(mcp2515_int_thread_stack,
-			     CONFIG_CAN_MCP2515_INT_THREAD_STACK_SIZE);
+#define CAN_STACK_INST(inst)    \
+        static K_KERNEL_STACK_DEFINE(mcp2515_int_thread_stack_##inst,CONFIG_CAN_MCP2515_INT_THREAD_STACK_SIZE);
 
-#define CAN_DATA_INST(inst)                                       \
-        static struct mcp2515_data mcp2515_data_##inst = {        \
-        	.int_thread_stack = mcp2515_int_thread_stack,     \
-        	.tx_cb[0].cb = NULL,                              \
-        	.tx_cb[1].cb = NULL,                              \
-        	.tx_cb[2].cb = NULL,                              \
-        	.tx_busy_map = 0U,                                \
-        	.filter_usage = 0U,                               \
+
+#define CAN_DATA_INST(inst)                                             \
+        static struct mcp2515_data mcp2515_data_##inst = {              \
+        	.int_thread_stack = mcp2515_int_thread_stack_##inst,    \
+        	.tx_cb[0].cb = NULL,                                    \
+        	.tx_cb[1].cb = NULL,                                    \
+        	.tx_cb[2].cb = NULL,                                    \
+        	.tx_busy_map = 0U,                                      \
+        	.filter_usage = 0U,                                     \
         };
 
 #define CAN_CONFIG_INST(inst)                                                         \
@@ -931,6 +932,7 @@ static K_KERNEL_STACK_DEFINE(mcp2515_int_thread_stack,
         		    CONFIG_CAN_MCP2515_INIT_PRIORITY, &can_api_funcs);             
                             
 #define CREATE_CAN_DEVICE(inst)         \
+        CAN_STACK_INST(inst)            \
         CAN_DATA_INST(inst);            \
         CAN_CONFIG_INST(inst);          \
         CAN_DEFINE_INST(inst);          \
@@ -948,7 +950,7 @@ static int socket_can_init(const struct device *dev)
 {                                                                                      
 	const struct device *can_dev = DEVICE_DT_INST_GET(0);                                         
 	struct socket_can_context *socket_context = dev->data;                         
-        static int ndev;                                                               
+        static int ndev = 0;                                                               
                                                                                        
 	LOG_DBG("Init socket CAN device %p (%s) for dev %p (%s)",                      
 		dev, dev->name, can_dev, can_dev->name);                               
